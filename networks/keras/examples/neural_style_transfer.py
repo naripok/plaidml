@@ -50,8 +50,7 @@ keeping the generated image close enough to the original one.
 '''
 
 from __future__ import print_function
-from keras.preprocessing.image import load_img, img_to_array
-from scipy.misc import imsave
+from keras.preprocessing.image import load_img, save_img, img_to_array
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import time
@@ -96,6 +95,11 @@ parser.add_argument('--tv_weight',
                     default=1.0,
                     required=False,
                     help='Total Variation weight.')
+parser.add_argument('--out_rows',
+                    type=int,
+                    default=800,
+                    required=False,
+                    help='Output pixel rows.')
 
 args = parser.parse_args()
 base_image_path = args.base_image_path
@@ -110,7 +114,7 @@ content_weight = args.content_weight
 
 # dimensions of the generated picture.
 width, height = load_img(base_image_path).size
-img_nrows = 400
+img_nrows = args.out_rows
 img_ncols = int(width * img_nrows / height)
 
 # util function to open, resize and format pictures into appropriate tensors
@@ -228,7 +232,8 @@ base_image_features = layer_features[0, :, :, :]
 combination_features = layer_features[2, :, :, :]
 loss += content_weight * content_loss(base_image_features, combination_features)
 
-feature_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
+#  feature_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
+feature_layers = ['block3_conv1', 'block4_conv1', 'block5_conv1']
 for layer_name in feature_layers:
     layer_features = outputs_dict[layer_name]
     style_reference_features = layer_features[1, :, :, :]
@@ -304,12 +309,21 @@ for i in range(iterations):
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss,
                                      x.flatten(),
                                      fprime=evaluator.grads,
-                                     maxfun=20)
+                                     maxfun=30)
     print('Current loss value:', min_val)
+    if i % 10 == 0:
+        # save current generated image
+        img = deprocess_image(x.copy())
+        fname = result_prefix + '_%d.png' % i
+        save_img(fname, img)
+        print('Image saved as', fname)
+
+    end_time = time.time()
+    print('Iteration %d completed in %ds' % (i, end_time - start_time))
+
+else:
     # save current generated image
     img = deprocess_image(x.copy())
     fname = result_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, img)
-    end_time = time.time()
+    save_img(fname, img)
     print('Image saved as', fname)
-    print('Iteration %d completed in %ds' % (i, end_time - start_time))
