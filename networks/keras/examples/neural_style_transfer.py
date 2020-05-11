@@ -60,42 +60,42 @@ from keras.applications import vgg19
 from keras import backend as K
 
 parser = argparse.ArgumentParser(description='Neural style transfer with Keras.')
-parser.add_argument('--base_image_path',
+parser.add_argument('--base_image_path', '-bp',
                     metavar='base',
                     type=str,
                     default='examples/plaid.jpg',
                     help='Path to the image to transform.')
-parser.add_argument('--style_reference_image_path',
+parser.add_argument('--style_reference_image_path', '-sp',
                     metavar='ref',
                     type=str,
                     default='examples/plaid.jpg',
                     help='Path to the style reference image.')
-parser.add_argument('--result_prefix',
+parser.add_argument('--result_prefix', '-rp',
                     metavar='res_prefix',
                     type=str,
                     default='result',
                     help='Prefix for the saved results.')
-parser.add_argument('--iter',
+parser.add_argument('--iter', '-i',
                     type=int,
                     default=5,
                     required=False,
                     help='Number of iterations to run.')
-parser.add_argument('--content_weight',
+parser.add_argument('--content_weight', '-cw',
                     type=float,
                     default=0.025,
                     required=False,
                     help='Content weight.')
-parser.add_argument('--style_weight',
+parser.add_argument('--style_weight', '-sw',
                     type=float,
                     default=1.0,
                     required=False,
                     help='Style weight.')
-parser.add_argument('--tv_weight',
+parser.add_argument('--tv_weight', '-tw',
                     type=float,
                     default=1.0,
                     required=False,
                     help='Total Variation weight.')
-parser.add_argument('--out_rows',
+parser.add_argument('--out_rows', '-or',
                     type=int,
                     default=800,
                     required=False,
@@ -233,7 +233,7 @@ combination_features = layer_features[2, :, :, :]
 loss += content_weight * content_loss(base_image_features, combination_features)
 
 #  feature_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
-feature_layers = ['block3_conv1', 'block4_conv1', 'block5_conv1']
+feature_layers = ['block4_conv1', 'block5_conv1']
 for layer_name in feature_layers:
     layer_features = outputs_dict[layer_name]
     style_reference_features = layer_features[1, :, :, :]
@@ -303,25 +303,29 @@ evaluator = Evaluator()
 # so as to minimize the neural style loss
 x = preprocess_image(base_image_path)
 
-for i in range(iterations):
-    print('Start of iteration', i)
-    start_time = time.time()
-    x, min_val, info = fmin_l_bfgs_b(evaluator.loss,
-                                     x.flatten(),
-                                     fprime=evaluator.grads,
-                                     maxfun=30)
-    print('Current loss value:', min_val)
-    if i % 10 == 0:
-        # save current generated image
-        img = deprocess_image(x.copy())
-        fname = result_prefix + '_%d.png' % i
-        save_img(fname, img)
-        print('Image saved as', fname)
+try:
+    for i in range(iterations):
+        print('Start of iteration', i)
+        start_time = time.time()
+        x, min_val, info = fmin_l_bfgs_b(evaluator.loss,
+                                         x.flatten(),
+                                         fprime=evaluator.grads,
+                                         maxfun=30)
+        print('Current loss value:', min_val)
+        if i % 10 == 0:
+            # save current generated image
+            img = deprocess_image(x.copy())
+            fname = result_prefix + '_%d.png' % i
+            save_img(fname, img)
+            print('Image saved as', fname)
 
-    end_time = time.time()
-    print('Iteration %d completed in %ds' % (i, end_time - start_time))
+        end_time = time.time()
+        print('Iteration %d completed in %ds' % (i, end_time - start_time))
 
-else:
+except KeyboardInterrupt:
+    print('Interrupted. Saving output...')
+
+finally:
     # save current generated image
     img = deprocess_image(x.copy())
     fname = result_prefix + '_at_iteration_%d.png' % i
